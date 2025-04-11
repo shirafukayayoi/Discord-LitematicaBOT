@@ -240,20 +240,28 @@ def setup(bot: commands.Bot):
             header_pattern = re.compile(r'\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|')
             row_pattern = re.compile(r'\|\s*(.*?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|')
 
+            # 最初にヘッダー行を追加
+            litematica_data.append(["Item", "Total", "check"])
+            
+            # データ行を処理
+            header_found = False
+            
             for line in lines:
-                # ヘッダー行を検出
-                if 'Item' in line and 'Total' in line:
-                    headers = header_pattern.match(line)
-                    if headers:
-                        # ヘッダーに "check" 列を追加
-                        columns = [headers.group(1), headers.group(2), "check"]
-                        litematica_data.append(columns)
-                # データ行取得
-                else:
-                    match = row_pattern.match(line)
-                    if match:
-                        # データ行にデフォルト値 "0" のcheck列を追加
-                        row = [match.group(1), match.group(2), "0"]
+                # ヘッダー行を検出（一度検出したら重複して追加しない）
+                if not header_found and ('Item' in line and 'Total' in line):
+                    header_found = True
+                    continue
+                
+                # データ行の処理
+                match = row_pattern.match(line)
+                if match:
+                    # データ行にデフォルト値 "0" のcheck列を追加（アイテム名と数量のみ抽出）
+                    item_name = match.group(1).strip()
+                    item_count = match.group(2).strip()
+                    
+                    # 空でないアイテム名と数量のある行のみ追加
+                    if item_name and item_count:
+                        row = [item_name, item_count, "0"]
                         litematica_data.append(row)
             
             # CSVとして保存（UTF-8で）
@@ -263,10 +271,7 @@ def setup(bot: commands.Bot):
             
             # Total列の合計値を計算
             total_sum = 0
-            for row in litematica_data:
-                # ヘッダー行をスキップ
-                if row[0] == "Item" or "Item" in row[0]:
-                    continue
+            for row in litematica_data[1:]:  # ヘッダー行をスキップ
                 try:
                     # 2番目の要素がTotal値
                     if len(row) > 1 and row[1].isdigit():
